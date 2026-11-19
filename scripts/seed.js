@@ -1,4 +1,11 @@
 // Seeds sample public-domain books. Run: npm run seed  (safe to re-run; it skips existing titles)
+import dns from "node:dns";
+
+// Same workaround as src/index.js: some networks refuse the SRV lookup.
+if (process.env.DNS_SERVERS) {
+  dns.setServers(process.env.DNS_SERVERS.split(",").map((s) => s.trim()));
+}
+
 import { MongoClient } from "mongodb";
 
 const cover = (id) => `https://www.gutenberg.org/cache/epub/${id}/pg${id}.cover.medium.jpg`;
