@@ -5,7 +5,11 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
  * Signing keys are fetched from the app's public JWKS endpoint and cached by jose.
  */
 export function createAuth({ jwksUrl, clientUrl }) {
-  const jwks = createRemoteJWKSet(new URL(jwksUrl));
+  const jwks = createRemoteJWKSet(new URL(jwksUrl), {
+    timeoutDuration: 10_000, // Next.js may still be compiling /api/auth/jwks on the first request
+    cooldownDuration: 5_000, // retry sooner if the first fetch failed
+    cacheMaxAge: 600_000, // keep the keys for 10 minutes
+  });
 
   async function readUser(req) {
     const [scheme, token] = (req.headers.authorization ?? "").split(" ");
@@ -23,6 +27,8 @@ export function createAuth({ jwksUrl, clientUrl }) {
       next();
     } catch (err) {
       const expired = err?.code === "ERR_JWT_EXPIRED";
+      // Print the real reason in the server terminal (for example ERR_JWKS_TIMEOUT or ERR_JWT_CLAIM_VALIDATION_FAILED).
+      if (!expired) console.warn("JWT check failed:", err?.code ?? err?.message);
       res.status(401).json({ message: expired ? "Your session has expired. Please sign in again." : "Invalid sign-in token." });
     }
   }
